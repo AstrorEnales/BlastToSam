@@ -28,7 +28,7 @@ Parameter | Description
 -h, --help   | This help page
 -i [VALUE] | Specifies the blast input filepath (Required)
 -o [VALUE] | Specifies the sam output filepath (Required)
--s [VALUE] | Specifies the sorting order [unknown, unsorted, queryname, coordinate] (Optional)
+-s [VALUE] | Specifies the sorting order (unknown, unsorted, queryname, coordinate) (Optional)
 
 Issues, Bugs, Feedback
 ==========

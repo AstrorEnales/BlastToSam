@@ -17,6 +17,12 @@ Command Line Example
 java -jar BlastToSam.jar -i query.blastn -s queryname -o result.sam
 ```
 
+Example to produce a sam file compatible with the igv viewer:
+
+```
+java -jar BlastToSam.jar -i query.blastn -s coordinate -n cut -o result.sam
+```
+
 Parameter
 ==========
 Parameter | Description
@@ -25,6 +31,9 @@ Parameter | Description
 -i [VALUE] | Specifies the blast input filepath (Required)
 -o [VALUE] | Specifies the sam output filepath (Required)
 -s [VALUE] | Specifies the sorting order (unknown, unsorted, queryname, coordinate) (Optional)
+-n [VALUE] | Specifies the name mode (cut, complete) (Optional)
+
+The name mode 'cut' parameter specifies that all reference and query sequence names are cut at the first occuring space character. This is for example needed to use the resulting sam file in the igv viewer.
 
 Issues, Bugs, Feedback
 ==========
@@ -46,3 +55,10 @@ BlastToSam was tested with the following versions of BLASTN:
 - BLASTN 2.2.28+
 - BLASTN 2.2.29+
 - BLASTN 2.2.30+
+
+Changesets
+==========
+2014-11-24
+
+- Fixed a bug in the sorting orders
+- Added name mode parameter (see parameter overview)

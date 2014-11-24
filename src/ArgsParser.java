@@ -41,6 +41,14 @@ public final class ArgsParser {
                     throw new ParseException("ERR: Invalid sorting order '" + SortingOrder + "'! Valid values are: " +
                             SORT_ORDER_UNKNOWN + ", " + SORT_ORDER_UNSORTED + ", " + SORT_ORDER_QUERYNAME + " and " + SORT_ORDER_COORDINATE + ".");
                 }
+            } else if (args[i].equals("-n")) {
+                if (i + 1 >= args.length)
+                    throw new ParseException("ERR: Unable to read name mode. No value was given for the parameter '-n'!");
+                NameMode = args[i + 1];
+                if (!isNameModeValid()) {
+                    throw new ParseException("ERR: Invalid name mode '" + NameMode + "'! Valid values are: " +
+                            NAME_MODE_CUT + ", " + NAME_MODE_COMPLETE + ".");
+                }
             } else if (args[i].equals("--help") || args[i].equals("-h")) {
                 System.out.println("BlastToSam Help");
                 System.out.println("\tExample: java -jar BlastToSam.jar -i query.blastn -s " + SORT_ORDER_QUERYNAME + " -o result.sam");
@@ -50,6 +58,7 @@ public final class ArgsParser {
                 System.out.println("\t-o [VALUE]\tSpecifies the sam output filepath (Required)");
                 System.out.println("\t-s [VALUE]\tSpecifies the sorting order [" + SORT_ORDER_UNKNOWN + ", " +
                         SORT_ORDER_UNSORTED + ", " + SORT_ORDER_QUERYNAME + ", " + SORT_ORDER_COORDINATE + "] (Optional)");
+                System.out.println("\t-n [VALUE]\tSpecifies the name mode [" + NAME_MODE_CUT + ", " + NAME_MODE_COMPLETE + "] (Optional)");
                 HelpPageShown = true;
                 return;
             }
@@ -63,6 +72,7 @@ public final class ArgsParser {
     public String InputFilepath = "";
     public String OutputFilepath = "";
     public String SortingOrder = SORT_ORDER_UNKNOWN;
+    public String NameMode = NAME_MODE_CUT;
     public boolean HelpPageShown;
 
     public static final String SORT_ORDER_UNKNOWN = "unknown";
@@ -70,9 +80,16 @@ public final class ArgsParser {
     public static final String SORT_ORDER_QUERYNAME = "queryname";
     public static final String SORT_ORDER_COORDINATE = "coordinate";
 
+    public static final String NAME_MODE_CUT = "cut";
+    public static final String NAME_MODE_COMPLETE = "complete";
+
     private boolean isSortingOrderValid() {
         return SortingOrder.equals(SORT_ORDER_COORDINATE) || SortingOrder.equals(SORT_ORDER_UNKNOWN) ||
                 SortingOrder.equals(SORT_ORDER_QUERYNAME) || SortingOrder.equals(SORT_ORDER_UNSORTED);
+    }
+
+    private boolean isNameModeValid() {
+        return NameMode.equals(NAME_MODE_CUT) || NameMode.equals(NAME_MODE_COMPLETE);
     }
 
     class ParseException extends Exception {

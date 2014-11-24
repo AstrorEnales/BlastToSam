@@ -63,17 +63,17 @@ public class BlastToSam {
             Collections.sort(alignments, new Comparator<MatchAlignment>() {
                 @Override
                 public int compare(MatchAlignment query1, MatchAlignment query2) {
-                    return query1.Parent.Parent.QueryName.compareTo(query2.Parent.Parent.QueryName);
+                    int nameCompare = query1.Parent.ReferenceName.compareTo(query2.Parent.ReferenceName);
+                    return nameCompare != 0 ? nameCompare :
+                            (query1.SubjectStart > query2.SubjectStart ? 1 :
+                                    (query1.SubjectStart < query2.SubjectStart ? -1 : 0));
                 }
             });
         } else if (argsParser.SortingOrder.equals(ArgsParser.SORT_ORDER_QUERYNAME)) {
             Collections.sort(alignments, new Comparator<MatchAlignment>() {
                 @Override
                 public int compare(MatchAlignment query1, MatchAlignment query2) {
-                    int nameCompare = query1.Parent.ReferenceName.compareTo(query2.Parent.ReferenceName);
-                    return nameCompare != 0 ? nameCompare :
-                            (query1.SubjectStart > query2.SubjectStart ? 1 :
-                                    (query1.SubjectStart < query2.SubjectStart ? -1 : 0));
+                    return query1.Parent.Parent.QueryName.compareTo(query2.Parent.Parent.QueryName);
                 }
             });
         }
@@ -85,20 +85,20 @@ public class BlastToSam {
         writeTabDelimLine(writer, new String[]{"@CO", comment});
         for (int i = 0; i < readGroupNameTable.size(); i++) {
             writeTabDelimLine(writer, new String[]{
-                    "@RG", "ID:" + (i + 1), "DS:" + cleanQueryName(readGroupNameTable.get(i)), "PL:*", "SM:*"
+                    "@RG", "ID:" + (i + 1), "DS:" + cleanQueryName(readGroupNameTable.get(i), argsParser), "PL:*", "SM:*"
             });
         }
         for (String key : referenceNameKeys) {
             writeTabDelimLine(writer, new String[]{
-                    "@SQ", "SN:" + cleanQueryName(key), "LN:" + referenceNameTable.get(key)
+                    "@SQ", "SN:" + cleanQueryName(key, argsParser), "LN:" + referenceNameTable.get(key)
             });
         }
 
         for (MatchAlignment alignment : alignments) {
             ReferenceMatch match = alignment.Parent;
             Query query = match.Parent;
-            String shortQueryName = cleanQueryName(query.QueryName);
-            String shortReferenceName = cleanQueryName(match.ReferenceName);
+            String shortQueryName = cleanQueryName(query.QueryName, argsParser);
+            String shortReferenceName = cleanQueryName(match.ReferenceName, argsParser);
             String[] contents = new String[]{
                     shortQueryName,               // QNAME
                     alignment.getFlag(),          // FLAG
@@ -121,8 +121,12 @@ public class BlastToSam {
         writer.close();
     }
 
-    private static String cleanQueryName(String name) {
-        return name.replace("\t", " ");
+    private static String cleanQueryName(String name, ArgsParser argsParser) {
+        name = name.replace("\t", " ");
+        if (argsParser.NameMode.equals(ArgsParser.NAME_MODE_CUT) && name.contains(" ")) {
+            name = name.substring(0, name.indexOf(' '));
+        }
+        return name;
     }
 
     private static void writeTabDelimLine(BufferedWriter writer, String[] contents) throws IOException {

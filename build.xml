@@ -1,25 +1,35 @@
 <project name="BlastToSam" basedir="." default="main">
   
+  <target name="clean">
+    <delete dir="${build.dir}"/>
+  </target>
+
   <property name="src.dir" value="src"/>
   <property name="build.dir" value="build"/>
   <property name="classes.dir" value="${build.dir}/classes"/>
   <property name="jar.dir" value="${build.dir}/jar"/>
 
-  <target name="clean">
-    <delete dir="${build.dir}"/>
-  </target>
-
   <target name="compile">
     <mkdir dir="${classes.dir}"/>
     <mkdir dir="${jar.dir}"/>
     <javac srcdir="${src.dir}" destdir="${classes.dir}"/>
-    <jar destfile="${jar.dir}/${ant.project.name}.jar" basedir="${classes.dir}">
+    <jar destfile="${jar.dir}/${ant.project.name}.jar"
+      basedir="${classes.dir}">
       <manifest>
         <attribute name="Main-Class" value="${ant.project.name}"/>
       </manifest>
     </jar>
   </target>
+  
+  <property environment="env"/>
+  <property name="storage.url" value="astror.pavo.uberspace.de:html/ci/blasttosam"/>
+  
+  <target name="upload" if="env.FTP_USER">
+    <scp file="${jar.dir}/${ant.project.name}.jar" sftp="true"
+      trust="true" todir="${env.FTP_USER}@${storage.url}"
+      password="${env.FTP_PASS}"/>
+  </target>
 
-  <target name="main" depends="clean,compile"/>
+  <target name="main" depends="clean,compile,upload"/>
   <target name="test" depends="main"/>
 </project>

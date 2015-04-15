@@ -5,6 +5,12 @@ Tool for converting BLASTN query results to the SAM format.
 
 This tool is compliant to SAM file format specification v1.4 (http://samtools.github.io/hts-specs/SAMv1.pdf) and validated with picard 1.124 ValidateSamFile.
 
+Jar Download
+==========
+The newest version can always be downloaded from [here.](http://astror.pavo.uberspace.de/ci/blasttosam/BlastToSam.jar)
+ 
+[![Build Status](https://travis-ci.org/AstrorEnales/BlastToSam.svg)](https://travis-ci.org/AstrorEnales/BlastToSam)
+
 Why use this tool?
 ==========
 Until now there was only a small perl script (blast2sam.pl) in the samtools package to convert blast query outputs to sam format and it didn't even work properly. After some searching i found another perl script (http://bioinformatics.ovsa.fr/41/blast2sam) which was a complete rewrite of the one in the samtools and it works really well.

@@ -3,6 +3,16 @@
   <target name="clean">
     <delete dir="${build.dir}"/>
   </target>
+  
+  <property name="jsch.home" value="${user.home}/.ant" />
+  <property name="jsch.jar.dir" value="${jsch.home}/lib" />
+  <property name="jsch.jar.file" value="${jsch.jar.dir}/jsch-0.1.52.jar" />
+
+  <target name="download-jsch" unless="offline">
+    <mkdir dir="${jsch.jar.dir}"/>
+    <get src="http://astror.pavo.uberspace.de/ci/jsch-0.1.52.jar" 
+      dest="${jsch.jar.file}" usetimestamp="true"/>
+  </target>
 
   <property name="src.dir" value="src"/>
   <property name="build.dir" value="build"/>

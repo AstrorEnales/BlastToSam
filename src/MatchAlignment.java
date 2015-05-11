@@ -84,7 +84,12 @@ public class MatchAlignment {
             StringBuilder result = new StringBuilder(sequence).reverse();
             for (int i = 0; i < sequence.length(); i++) {
                 int charIndex = FromChars.indexOf("" + result.charAt(i));
-                result.setCharAt(i, ToChars.get(charIndex).charAt(0));
+                if (charIndex == -1) {
+                    System.out.println("Unknown char while building complementary sequence: '" +
+                            result.charAt(i) + "', will be left unchanged!");
+                } else {
+                    result.setCharAt(i, ToChars.get(charIndex).charAt(0));
+                }
             }
             sequence = result.toString();
         }
@@ -92,9 +97,9 @@ public class MatchAlignment {
     }
 
     private static ArrayList<String> FromChars = new ArrayList<String>(Arrays.asList(
-            new String[]{"a", "t", "g", "c", "r", "y", "m", "k", "s", "w", "A", "T", "G", "C", "R", "Y", "M", "K", "S", "W"}));
+            new String[]{"a", "t", "g", "c", "r", "y", "m", "k", "s", "w", "n", "A", "T", "G", "C", "R", "Y", "M", "K", "S", "W", "N"}));
     private static ArrayList<String> ToChars = new ArrayList<String>(Arrays.asList(
-            new String[]{"t", "a", "c", "g", "y", "r", "k", "m", "s", "w", "T", "A", "C", "G", "Y", "R", "K", "M", "S", "W"}));
+            new String[]{"t", "a", "c", "g", "y", "r", "k", "m", "s", "w", "n", "T", "A", "C", "G", "Y", "R", "K", "M", "S", "W", "N"}));
 
     public String getCigar() {
         ArrayList<String> cigarParts = new ArrayList<String>();

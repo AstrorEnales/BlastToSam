@@ -49,6 +49,8 @@ public final class ArgsParser {
                     throw new ParseException("ERR: Invalid name mode '" + NameMode + "'! Valid values are: " +
                             NAME_MODE_CUT + ", " + NAME_MODE_COMPLETE + ".");
                 }
+            } else if (args[i].equals("-r")) {
+                RemoveQueriesWithoutHits = true;
             } else if (args[i].equals("--help") || args[i].equals("-h")) {
                 System.out.println("BlastToSam Help");
                 System.out.println("\tExample: java -jar BlastToSam.jar -i query.blastn -s " + SORT_ORDER_QUERYNAME + " -o result.sam");
@@ -59,6 +61,7 @@ public final class ArgsParser {
                 System.out.println("\t-s [VALUE]\tSpecifies the sorting order [" + SORT_ORDER_UNKNOWN + ", " +
                         SORT_ORDER_UNSORTED + ", " + SORT_ORDER_QUERYNAME + ", " + SORT_ORDER_COORDINATE + "] (Optional)");
                 System.out.println("\t-n [VALUE]\tSpecifies the name mode [" + NAME_MODE_CUT + ", " + NAME_MODE_COMPLETE + "] (Optional)");
+                System.out.println("\t-r\t\tRemoves query entries without hits (Optional)");
                 HelpPageShown = true;
                 return;
             }
@@ -74,6 +77,7 @@ public final class ArgsParser {
     public String SortingOrder = SORT_ORDER_UNKNOWN;
     public String NameMode = NAME_MODE_CUT;
     public boolean HelpPageShown;
+    public boolean RemoveQueriesWithoutHits;
 
     public static final String SORT_ORDER_UNKNOWN = "unknown";
     public static final String SORT_ORDER_UNSORTED = "unsorted";

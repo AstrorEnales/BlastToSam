@@ -26,11 +26,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 public class MatchAlignment {
-    public ReferenceMatch Parent;
     public int Score;
     public String EValue;
     public int EditDistance;
-
+    public NameWithLength Reference;
+    public NameWithLength Query;
     public boolean QueryReverse = false;
     public boolean SubjectReverse = false;
     public String QuerySequence = "";
@@ -39,30 +39,28 @@ public class MatchAlignment {
     public int SubjectStart = BlastReader.LENGTH_NOT_READ;
     public int Flag;
 
-    public void addAlignmentFragment(String queryLine, String alignLign, String subjectLine) {
-        String querySeq = BlastToSam.trimStart(queryLine.substring("Query".length()));
-        String queryStartText = querySeq.split(" ")[0].trim();
+    public void addAlignmentFragment(String queryLine, String subjectLine) {
+        String querySeq = queryLine.substring("Query".length()).trim();
+        String queryStartText = querySeq.split(" ")[0];
         int queryStart = Integer.parseInt(queryStartText);
         querySeq = querySeq.substring(querySeq.indexOf(queryStartText) + queryStartText.length()).trim();
         String[] queryParts = querySeq.split(" ");
-        int queryEnd = Integer.parseInt(queryParts[queryParts.length - 1].trim());
+        int queryEnd = Integer.parseInt(queryParts[queryParts.length - 1]);
         if (queryEnd < queryStart) {
             QueryReverse = true;
             QueryStart = queryEnd;
         } else if (QueryStart == BlastReader.LENGTH_NOT_READ) {
             QueryStart = queryStart;
         }
-        querySeq = queryParts[0].trim();
+        querySeq = queryParts[0];
         QuerySequence += querySeq;
 
-        //int startIndexOfAlignment = queryLine.indexOf(querySeq);
-
-        subjectLine = BlastToSam.trimStart(subjectLine.substring("Sbjct".length()));
-        String subjectStartText = subjectLine.split(" ")[0].trim();
+        subjectLine = subjectLine.substring("Sbjct".length()).trim();
+        String subjectStartText = subjectLine.split(" ")[0];
         int subjectStart = Integer.parseInt(subjectStartText);
         subjectLine = subjectLine.substring(subjectLine.indexOf(subjectStartText) + subjectStartText.length()).trim();
         String[] subjectParts = subjectLine.split(" ");
-        int subjectEnd = Integer.parseInt(subjectParts[subjectParts.length - 1].trim());
+        int subjectEnd = Integer.parseInt(subjectParts[subjectParts.length - 1]);
         if (subjectEnd < subjectStart) {
             SubjectReverse = true;
             Flag |= 0x0010;
@@ -70,12 +68,7 @@ public class MatchAlignment {
         } else if (SubjectStart == BlastReader.LENGTH_NOT_READ) {
             SubjectStart = subjectStart;
         }
-        SubjectSequence += subjectParts[0].trim();
-
-        //alignLign = alignLign.substring(startIndexOfAlignment);
-        //while(alignLign.length() < queryLine.length())
-        //  alignLign += " ";
-        //alignment += alignLign;
+        SubjectSequence += subjectParts[0];
     }
 
     public String getSequence() {
@@ -101,7 +94,7 @@ public class MatchAlignment {
     private static ArrayList<String> ToChars = new ArrayList<String>(Arrays.asList(
             new String[]{"t", "a", "c", "g", "y", "r", "k", "m", "s", "w", "n", "T", "A", "C", "G", "Y", "R", "K", "M", "S", "W", "N"}));
 
-    public String getCigar() {
+    public String getCigar(int queryLength) {
         ArrayList<String> cigarParts = new ArrayList<String>();
         if (QueryStart > 1)
             cigarParts.add((QueryStart - 1) + "H");
@@ -129,23 +122,23 @@ public class MatchAlignment {
         }
         cigarParts.add(count + type);
 
-        int seqLength = getSequence().length() + (QueryStart - 1);
-        int queryLength = Parent.Parent.Length;
+        int seqLength = QuerySequence.replace("-", "").length() + (QueryStart - 1);
         if (seqLength < queryLength)
             cigarParts.add((queryLength - seqLength) + "H");
 
-        String cigar = "";
+        StringBuilder cigar = new StringBuilder();
         if (SubjectReverse)
             for (int i = cigarParts.size() - 1; i >= 0; i--)
-                cigar += cigarParts.get(i);
+                cigar.append(cigarParts.get(i));
         else
             for (String cigarPart : cigarParts)
-                cigar += cigarPart;
-        return cigar;
+                cigar.append(cigarPart);
+        return cigar.toString();
     }
 
     public int getMapScore() {
         return 0;
+        // TODO: Use E-Value as mapping score (Phred scaled)
         //long eval = Double.valueOf(EValue).longValue();
         //return (int)(eval >= 0 ? 0 : -10 * (Math.log(eval) / Math.log(10)));
     }

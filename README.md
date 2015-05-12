@@ -33,11 +33,12 @@ Parameter
 ==========
 Parameter | Description
 --------------- | ----------------
--h, --help   | This help page
+-h, --help | This help page
 -i [VALUE] | Specifies the blast input filepath (Required)
 -o [VALUE] | Specifies the sam output filepath (Required)
 -s [VALUE] | Specifies the sorting order (unknown, unsorted, queryname, coordinate) (Optional)
 -n [VALUE] | Specifies the name mode (cut, complete) (Optional)
+-r         | Removes query entries without hits (Optional)
 
 The name mode 'cut' parameter specifies that all reference and query sequence names are cut at the first occuring space character. This is for example needed to use the resulting sam file in the igv viewer.
 
@@ -64,6 +65,12 @@ BlastToSam was tested with the following versions of BLASTN:
 
 Changesets
 ==========
+2015-05-12
+
+- Improved performance
+- Added console information about the current state
+- Added -r parameter
+
 2015-05-11
 
 - Building the complementary sequence now catches unknown chars and handles N's properly

@@ -22,8 +22,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-// Version 2014-11-11
-
 import java.io.*;
 import java.util.*;
 
@@ -33,51 +31,62 @@ public class BlastToSam {
         try {
             argsParser = new ArgsParser(args);
         } catch (ArgsParser.ParseException ex) {
-            System.out.println("ERR: " + ex.getMessage());
+            System.out.println("[Error] " + ex.getMessage());
             return;
         }
         if (argsParser.HelpPageShown)
             return;
+        System.out.println("[Info] BlastToSam v2015-05-12");
+        System.out.println("[Info] Converting '" + argsParser.InputFilepath + "' to '" + argsParser.OutputFilepath + "'");
+        System.out.println("[Info] SortingOrder is " + argsParser.SortingOrder);
+        System.out.println("[Info] NameMode is " + argsParser.NameMode);
+        if (argsParser.RemoveQueriesWithoutHits)
+            System.out.println("[Info] Removing queries without hits is on");
 
+        Date startTime = new Date();
+
+        System.out.println("[Info] Reading input file...");
         BlastReader blast = new BlastReader(argsParser.InputFilepath);
 
         ArrayList<String> readGroupNameTable = new ArrayList<String>();
-        HashMap<String, Integer> referenceNameTable = new HashMap<String, Integer>();
-        for (Query query : blast.Queries) {
-            if (!readGroupNameTable.contains(query.QueryName))
-                readGroupNameTable.add(query.QueryName);
-            for (ReferenceMatch match : query.Matches)
-                if (!referenceNameTable.containsKey(match.ReferenceName))
-                    referenceNameTable.put(match.ReferenceName, match.Length);
+        for (NameWithLength query : blast.queries) {
+            if (!readGroupNameTable.contains(query.Name) && (!argsParser.RemoveQueriesWithoutHits || !query.NoHits))
+                readGroupNameTable.add(query.Name);
         }
 
-        ArrayList<MatchAlignment> alignments = new ArrayList<MatchAlignment>();
-        for (Query query : blast.Queries)
-            for (ReferenceMatch match : query.Matches)
-                for (MatchAlignment alignment : match.Alignments)
-                    alignments.add(alignment);
+        System.out.println("[Info] Query count: " + blast.queries.size());
+        System.out.println("[Info] Reference count: " + blast.references.size());
+        System.out.println("[Info] Alignments count: " + blast.alignments.size());
 
-        ArrayList<String> referenceNameKeys = new ArrayList<String>(referenceNameTable.keySet());
         if (argsParser.SortingOrder.equals(ArgsParser.SORT_ORDER_COORDINATE)) {
-            Collections.sort(referenceNameKeys);
-            Collections.sort(alignments, new Comparator<MatchAlignment>() {
+            System.out.println("[Info] Sorting in coordinate mode...");
+            Collections.sort(blast.references, new Comparator<NameWithLength>() {
+                @Override
+                public int compare(NameWithLength a, NameWithLength b) {
+                    return a.Name.compareTo(b.Name);
+                }
+            });
+            Collections.sort(blast.alignments, new Comparator<MatchAlignment>() {
                 @Override
                 public int compare(MatchAlignment query1, MatchAlignment query2) {
-                    int nameCompare = query1.Parent.ReferenceName.compareTo(query2.Parent.ReferenceName);
+                    int nameCompare = query1.Reference.Name.compareTo(query2.Reference.Name);
                     return nameCompare != 0 ? nameCompare :
                             (query1.SubjectStart > query2.SubjectStart ? 1 :
                                     (query1.SubjectStart < query2.SubjectStart ? -1 : 0));
                 }
             });
         } else if (argsParser.SortingOrder.equals(ArgsParser.SORT_ORDER_QUERYNAME)) {
-            Collections.sort(alignments, new Comparator<MatchAlignment>() {
+            System.out.println("[Info] Sorting in queryname mode...");
+            Collections.sort(blast.alignments, new Comparator<MatchAlignment>() {
                 @Override
                 public int compare(MatchAlignment query1, MatchAlignment query2) {
-                    return query1.Parent.Parent.QueryName.compareTo(query2.Parent.Parent.QueryName);
+                    return query1.Query.Name.compareTo(query2.Query.Name);
                 }
             });
         }
 
+        boolean cutNameModeOn = argsParser.NameMode.equals(ArgsParser.NAME_MODE_CUT);
+        System.out.println("[Info] Writing output...");
         BufferedWriter writer = new BufferedWriter(new FileWriter(argsParser.OutputFilepath));
         writeTabDelimLine(writer, new String[]{"@HD", "VN:1.4", "SO:" + argsParser.SortingOrder});
         String comment = "Blast query result" + (blast.DatabaseName.length() > 0 ?
@@ -85,69 +94,62 @@ public class BlastToSam {
         writeTabDelimLine(writer, new String[]{"@CO", comment});
         for (int i = 0; i < readGroupNameTable.size(); i++) {
             writeTabDelimLine(writer, new String[]{
-                    "@RG", "ID:" + (i + 1), "DS:" + cleanQueryName(readGroupNameTable.get(i), argsParser), "PL:*", "SM:*"
+                    "@RG", "ID:" + (i + 1), "DS:" + cleanQueryName(readGroupNameTable.get(i), cutNameModeOn), "PL:*", "SM:*"
             });
         }
-        for (String key : referenceNameKeys) {
+        for (NameWithLength ref : blast.references) {
             writeTabDelimLine(writer, new String[]{
-                    "@SQ", "SN:" + cleanQueryName(key, argsParser), "LN:" + referenceNameTable.get(key)
+                    "@SQ", "SN:" + cleanQueryName(ref.Name, cutNameModeOn), "LN:" + ref.Length
             });
         }
 
-        for (MatchAlignment alignment : alignments) {
-            ReferenceMatch match = alignment.Parent;
-            Query query = match.Parent;
-            String shortQueryName = cleanQueryName(query.QueryName, argsParser);
-            String shortReferenceName = cleanQueryName(match.ReferenceName, argsParser);
+        for (MatchAlignment alignment : blast.alignments) {
+            String shortQueryName = cleanQueryName(alignment.Query.Name, cutNameModeOn);
+            String shortReferenceName = cleanQueryName(alignment.Reference.Name, cutNameModeOn);
             String[] contents = new String[]{
-                    shortQueryName,               // QNAME
-                    alignment.getFlag(),          // FLAG
-                    shortReferenceName,           // RNAME
-                    "" + alignment.SubjectStart,  // POS
-                    "" + alignment.getMapScore(), // MAPQ     Use E-Value as mapping score (Phred scaled)
-                    alignment.getCigar(),         // CIGAR
-                    "*",                          // RNEXT
-                    "0",                          // PNEXT
-                    "0",                          // TLEN
-                    alignment.getSequence(),      // SEQ
-                    "*",                          // QUAL
+                    shortQueryName,                               // QNAME
+                    alignment.getFlag(),                          // FLAG
+                    shortReferenceName,                           // RNAME
+                    "" + alignment.SubjectStart,                  // POS
+                    "" + alignment.getMapScore(),                 // MAPQ
+                    alignment.getCigar(alignment.Query.Length),   // CIGAR
+                    "*",                                          // RNEXT
+                    "0",                                          // PNEXT
+                    "0",                                          // TLEN
+                    alignment.getSequence(),                      // SEQ
+                    "*",                                          // QUAL
                     "AS:i:" + alignment.Score,
                     "XE:f:" + alignment.EValue,
-                    "RG:Z:" + (readGroupNameTable.indexOf(query.QueryName) + 1),
+                    "RG:Z:" + (readGroupNameTable.indexOf(alignment.Query.Name) + 1),
                     "NM:i:" + alignment.EditDistance
             };
             writeTabDelimLine(writer, contents);
         }
         writer.close();
+
+        Date endTime = new Date();
+        long elapsed = endTime.getTime() - startTime.getTime();
+        System.out.println("[Info] Took " + (elapsed < 1000 ? (elapsed + "ms") : ((elapsed / 1000.0) + "sec")));
     }
 
-    private static String cleanQueryName(String name, ArgsParser argsParser) {
-        name = name.replace("\t", " ");
-        if (argsParser.NameMode.equals(ArgsParser.NAME_MODE_CUT) && name.contains(" ")) {
-            name = name.substring(0, name.indexOf(' '));
+    private static String cleanQueryName(String name, boolean cutNameModeOn) {
+        name = name.replace('\t', ' ');
+        if (cutNameModeOn) {
+            int indexOfSpace = name.indexOf(' ');
+            if (indexOfSpace != -1)
+                name = name.substring(0, indexOfSpace);
         }
         return name;
     }
 
     private static void writeTabDelimLine(BufferedWriter writer, String[] contents) throws IOException {
-        if (contents.length == 0) {
-            writeLine(writer, "");
-            return;
+        if (contents.length > 0) {
+            writer.write(contents[0]);
+            for (int i = 1; i < contents.length; i++) {
+                writer.write('\t');
+                writer.write(contents[i]);
+            }
         }
-        String result = contents[0];
-        for (int i = 1; i < contents.length; i++)
-            result += "\t" + contents[i];
-        writeLine(writer, result);
-    }
-
-    private static void writeLine(BufferedWriter writer, String line) throws IOException {
-        writer.write(line);
         writer.newLine();
     }
-
-    static String trimStart(String text) {
-        return text.replaceAll("^\\s+", "");
-    }
 }
-
-

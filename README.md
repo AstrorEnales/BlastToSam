@@ -1,7 +1,7 @@
 BlastToSam
 ==========
 
-Tool for converting BLASTN query results to the SAM format. The supported output format of BLASTN is currently limited to the default (-outfmt 0).
+Tool for converting BLASTN query results to the SAM format. The supported output format of BLASTN is currently limited to the default (-outfmt 0) and Xml (-outfmt 5).
 
 This tool is compliant to SAM file format specification v1.4 (http://samtools.github.io/hts-specs/SAMv1.pdf) and validated with picard 1.124 ValidateSamFile.
 
@@ -71,6 +71,7 @@ Changesets
 - Improved performance
 - Added console information about the current state
 - Added -r parameter
+- Added BlastXmlReader for Blast xml output format (used if input file has .xml extension)
 
 2015-05-11
 

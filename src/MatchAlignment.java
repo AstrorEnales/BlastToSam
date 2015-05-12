@@ -27,7 +27,6 @@ import java.util.HashMap;
 public class MatchAlignment {
     public int Score;
     public String EValue;
-    public int EditDistance;
     public NameWithLength Reference;
     public NameWithLength Query;
     public boolean QueryReverse = false;
@@ -36,7 +35,13 @@ public class MatchAlignment {
     public String SubjectSequence = "";
     public int QueryStart = BlastReader.LENGTH_NOT_READ;
     public int SubjectStart = BlastReader.LENGTH_NOT_READ;
+    public int AlignmentLength;
+    public int AlignmentPositive;
     public int Flag;
+
+    public int getEditDistance() {
+        return AlignmentLength - AlignmentPositive;
+    }
 
     public void addAlignmentFragment(String queryLine, String subjectLine) {
         addQueryLineFragment(queryLine);

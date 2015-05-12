@@ -22,22 +22,26 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-import java.util.ArrayList;
+class NameWithLength {
+    public String Name;
+    public int Length = BlastReader.LENGTH_NOT_READ;
+    public boolean NoHits;
 
-public abstract class BlastReader {
-    public static final int LENGTH_NOT_READ = -999;
+    public String getCleanName(boolean cutNameModeOn) {
+        if (cleanName == null)
+            cleanName = cleanName(Name, cutNameModeOn);
+        return cleanName;
+    }
 
-    public String DatabaseName = "";
-    public ArrayList<NameWithLength> queries = new ArrayList<NameWithLength>();
-    public ArrayList<NameWithLength> references = new ArrayList<NameWithLength>();
-    public ArrayList<MatchAlignment> alignments = new ArrayList<MatchAlignment>();
+    private String cleanName;
 
-    protected NameWithLength addToListOrGetEntry(ArrayList<NameWithLength> list, NameWithLength entry) {
-        for (NameWithLength tmp : list) {
-            if (tmp.Name.equals(entry.Name))
-                return tmp;
+    public static String cleanName(String name, boolean cutNameModeOn) {
+        name = name.replace('\t', ' ');
+        if (cutNameModeOn) {
+            int indexOfSpace = name.indexOf(' ');
+            if (indexOfSpace != -1)
+                name = name.substring(0, indexOfSpace);
         }
-        list.add(entry);
-        return entry;
+        return name;
     }
 }

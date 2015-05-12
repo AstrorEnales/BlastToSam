@@ -46,7 +46,12 @@ public class BlastToSam {
         Date startTime = new Date();
 
         System.out.println("[Info] Reading input file...");
-        BlastReader blast = new BlastReader(argsParser.InputFilepath);
+        BlastReader blast;
+        if (argsParser.InputFilepath.endsWith(".xml")) {
+            blast = new BlastXmlReader(argsParser.InputFilepath);
+        } else {
+            blast = new BlastTextReader(argsParser.InputFilepath);
+        }
 
         ArrayList<String> readGroupNameTable = new ArrayList<String>();
         for (NameWithLength query : blast.queries) {
@@ -117,7 +122,7 @@ public class BlastToSam {
                     "AS:i:" + alignment.Score,
                     "XE:f:" + alignment.EValue,
                     "RG:Z:" + (readGroupNameTable.indexOf(alignment.Query.Name) + 1),
-                    "NM:i:" + alignment.EditDistance);
+                    "NM:i:" + alignment.getEditDistance());
         }
         writer.close();
 

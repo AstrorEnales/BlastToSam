@@ -22,8 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.HashMap;
 
 public class MatchAlignment {
     public int Score;
@@ -40,27 +39,34 @@ public class MatchAlignment {
     public int Flag;
 
     public void addAlignmentFragment(String queryLine, String subjectLine) {
-        String querySeq = queryLine.substring("Query".length()).trim();
-        String queryStartText = querySeq.split(" ")[0];
-        int queryStart = Integer.parseInt(queryStartText);
-        querySeq = querySeq.substring(querySeq.indexOf(queryStartText) + queryStartText.length()).trim();
-        String[] queryParts = querySeq.split(" ");
-        int queryEnd = Integer.parseInt(queryParts[queryParts.length - 1]);
+        addQueryLineFragment(queryLine);
+        addSubjectLineFragment(subjectLine);
+    }
+
+    private void addQueryLineFragment(String queryLine) {
+        String querySeq = queryLine.substring(QUERY_IDENTIFIER.length()).trim();
+        int indexOfSpaceAfterQueryStartNumber = querySeq.indexOf(' ');
+        int queryStart = Integer.parseInt(querySeq.substring(0, indexOfSpaceAfterQueryStartNumber));
+        querySeq = querySeq.substring(indexOfSpaceAfterQueryStartNumber + 1).trim();
+        int queryEnd = Integer.parseInt(querySeq.substring(querySeq.lastIndexOf(' ') + 1));
         if (queryEnd < queryStart) {
             QueryReverse = true;
             QueryStart = queryEnd;
         } else if (QueryStart == BlastReader.LENGTH_NOT_READ) {
             QueryStart = queryStart;
         }
-        querySeq = queryParts[0];
+        querySeq = querySeq.substring(0, querySeq.indexOf(' '));
         QuerySequence += querySeq;
+    }
 
-        subjectLine = subjectLine.substring("Sbjct".length()).trim();
-        String subjectStartText = subjectLine.split(" ")[0];
-        int subjectStart = Integer.parseInt(subjectStartText);
-        subjectLine = subjectLine.substring(subjectLine.indexOf(subjectStartText) + subjectStartText.length()).trim();
-        String[] subjectParts = subjectLine.split(" ");
-        int subjectEnd = Integer.parseInt(subjectParts[subjectParts.length - 1]);
+    private static final String QUERY_IDENTIFIER = "Query";
+
+    private void addSubjectLineFragment(String subjectLine) {
+        subjectLine = subjectLine.substring(SUBJECT_IDENTIFIER.length()).trim();
+        int indexOfSpaceAfterSubjectStartNumber = subjectLine.indexOf(' ');
+        int subjectStart = Integer.parseInt(subjectLine.substring(0, indexOfSpaceAfterSubjectStartNumber));
+        subjectLine = subjectLine.substring(indexOfSpaceAfterSubjectStartNumber + 1).trim();
+        int subjectEnd = Integer.parseInt(subjectLine.substring(subjectLine.lastIndexOf(' ') + 1));
         if (subjectEnd < subjectStart) {
             SubjectReverse = true;
             Flag |= 0x0010;
@@ -68,37 +74,60 @@ public class MatchAlignment {
         } else if (SubjectStart == BlastReader.LENGTH_NOT_READ) {
             SubjectStart = subjectStart;
         }
-        SubjectSequence += subjectParts[0];
+        SubjectSequence += subjectLine.substring(0, subjectLine.indexOf(' '));
     }
+
+    private static final String SUBJECT_IDENTIFIER = "Sbjct";
 
     public String getSequence() {
         String sequence = QuerySequence.replace("-", "");
         if (SubjectReverse) {
             StringBuilder result = new StringBuilder(sequence).reverse();
             for (int i = 0; i < sequence.length(); i++) {
-                int charIndex = FromChars.indexOf("" + result.charAt(i));
-                if (charIndex == -1) {
+                String key = "" + result.charAt(i);
+                if (ComplementaryMap.containsKey(key))
+                    result.setCharAt(i, ComplementaryMap.get(key).charAt(0));
+                else
                     System.out.println("Unknown char while building complementary sequence: '" +
                             result.charAt(i) + "', will be left unchanged!");
-                } else {
-                    result.setCharAt(i, ToChars.get(charIndex).charAt(0));
-                }
             }
             sequence = result.toString();
         }
         return sequence;
     }
 
-    private static ArrayList<String> FromChars = new ArrayList<String>(Arrays.asList(
-            new String[]{"a", "t", "g", "c", "r", "y", "m", "k", "s", "w", "n", "A", "T", "G", "C", "R", "Y", "M", "K", "S", "W", "N"}));
-    private static ArrayList<String> ToChars = new ArrayList<String>(Arrays.asList(
-            new String[]{"t", "a", "c", "g", "y", "r", "k", "m", "s", "w", "n", "T", "A", "C", "G", "Y", "R", "K", "M", "S", "W", "N"}));
+    private static HashMap<String, String> ComplementaryMap;
+
+    public MatchAlignment() {
+        if (ComplementaryMap == null) {
+            ComplementaryMap = new HashMap<String, String>();
+            ComplementaryMap.put("a", "t");
+            ComplementaryMap.put("t", "a");
+            ComplementaryMap.put("g", "c");
+            ComplementaryMap.put("c", "g");
+            ComplementaryMap.put("r", "y");
+            ComplementaryMap.put("y", "r");
+            ComplementaryMap.put("m", "k");
+            ComplementaryMap.put("k", "m");
+            ComplementaryMap.put("s", "s");
+            ComplementaryMap.put("w", "w");
+            ComplementaryMap.put("n", "n");
+            ComplementaryMap.put("A", "T");
+            ComplementaryMap.put("T", "A");
+            ComplementaryMap.put("G", "C");
+            ComplementaryMap.put("C", "G");
+            ComplementaryMap.put("R", "Y");
+            ComplementaryMap.put("Y", "R");
+            ComplementaryMap.put("M", "K");
+            ComplementaryMap.put("K", "M");
+            ComplementaryMap.put("S", "S");
+            ComplementaryMap.put("W", "W");
+            ComplementaryMap.put("N", "N");
+        }
+    }
 
     public String getCigar(int queryLength) {
-        ArrayList<String> cigarParts = new ArrayList<String>();
-        if (QueryStart > 1)
-            cigarParts.add((QueryStart - 1) + "H");
-
+        StringBuilder cigar = new StringBuilder(QueryStart > 1 ? ((QueryStart - 1) + "H") : "");
         String type = "=";
         String previous = "=";
         int count = 0;
@@ -111,28 +140,34 @@ public class MatchAlignment {
                 type = "=";
             else
                 type = "X";
-
             if (type.equals(previous)) {
                 count++;
             } else if (count >= 1) {
-                cigarParts.add(count + previous);
+                if (SubjectReverse)
+                    cigar.insert(0, count + previous);
+                else {
+                    cigar.append(count);
+                    cigar.append(previous);
+                }
                 previous = type;
                 count = 1;
             }
         }
-        cigarParts.add(count + type);
-
-        int seqLength = QuerySequence.replace("-", "").length() + (QueryStart - 1);
-        if (seqLength < queryLength)
-            cigarParts.add((queryLength - seqLength) + "H");
-
-        StringBuilder cigar = new StringBuilder();
         if (SubjectReverse)
-            for (int i = cigarParts.size() - 1; i >= 0; i--)
-                cigar.append(cigarParts.get(i));
-        else
-            for (String cigarPart : cigarParts)
-                cigar.append(cigarPart);
+            cigar.insert(0, count + type);
+        else {
+            cigar.append(count);
+            cigar.append(type);
+        }
+        int seqLength = QuerySequence.replace("-", "").length() + (QueryStart - 1);
+        if (seqLength < queryLength) {
+            if (SubjectReverse)
+                cigar.insert(0, (queryLength - seqLength) + "H");
+            else {
+                cigar.append((queryLength - seqLength));
+                cigar.append("H");
+            }
+        }
         return cigar.toString();
     }
 

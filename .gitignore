@@ -15,3 +15,5 @@ out
 build
 BlastToSam.iml
 BlastToSam.jar
+*.TMP
+java.hprof.txt

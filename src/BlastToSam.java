@@ -88,25 +88,21 @@ public class BlastToSam {
         boolean cutNameModeOn = argsParser.NameMode.equals(ArgsParser.NAME_MODE_CUT);
         System.out.println("[Info] Writing output...");
         BufferedWriter writer = new BufferedWriter(new FileWriter(argsParser.OutputFilepath));
-        writeTabDelimLine(writer, new String[]{"@HD", "VN:1.4", "SO:" + argsParser.SortingOrder});
+        writeTabDelimLine(writer, "@HD", "VN:1.4", "SO:" + argsParser.SortingOrder);
         String comment = "Blast query result" + (blast.DatabaseName.length() > 0 ?
                 " for database '" + blast.DatabaseName + "'" : "") + ". Converted with BlastToSam";
-        writeTabDelimLine(writer, new String[]{"@CO", comment});
+        writeTabDelimLine(writer, "@CO", comment);
         for (int i = 0; i < readGroupNameTable.size(); i++) {
-            writeTabDelimLine(writer, new String[]{
-                    "@RG", "ID:" + (i + 1), "DS:" + cleanQueryName(readGroupNameTable.get(i), cutNameModeOn), "PL:*", "SM:*"
-            });
+            writeTabDelimLine(writer, "@RG", "ID:" + (i + 1), "DS:" + NameWithLength.cleanName(readGroupNameTable.get(i), cutNameModeOn), "PL:*", "SM:*");
         }
         for (NameWithLength ref : blast.references) {
-            writeTabDelimLine(writer, new String[]{
-                    "@SQ", "SN:" + cleanQueryName(ref.Name, cutNameModeOn), "LN:" + ref.Length
-            });
+            writeTabDelimLine(writer, "@SQ", "SN:" + ref.getCleanName(cutNameModeOn), "LN:" + ref.Length);
         }
 
         for (MatchAlignment alignment : blast.alignments) {
-            String shortQueryName = cleanQueryName(alignment.Query.Name, cutNameModeOn);
-            String shortReferenceName = cleanQueryName(alignment.Reference.Name, cutNameModeOn);
-            String[] contents = new String[]{
+            String shortQueryName = alignment.Query.getCleanName(cutNameModeOn);
+            String shortReferenceName = alignment.Reference.getCleanName(cutNameModeOn);
+            writeTabDelimLine(writer,
                     shortQueryName,                               // QNAME
                     alignment.getFlag(),                          // FLAG
                     shortReferenceName,                           // RNAME
@@ -121,9 +117,7 @@ public class BlastToSam {
                     "AS:i:" + alignment.Score,
                     "XE:f:" + alignment.EValue,
                     "RG:Z:" + (readGroupNameTable.indexOf(alignment.Query.Name) + 1),
-                    "NM:i:" + alignment.EditDistance
-            };
-            writeTabDelimLine(writer, contents);
+                    "NM:i:" + alignment.EditDistance);
         }
         writer.close();
 
@@ -132,23 +126,11 @@ public class BlastToSam {
         System.out.println("[Info] Took " + (elapsed < 1000 ? (elapsed + "ms") : ((elapsed / 1000.0) + "sec")));
     }
 
-    private static String cleanQueryName(String name, boolean cutNameModeOn) {
-        name = name.replace('\t', ' ');
-        if (cutNameModeOn) {
-            int indexOfSpace = name.indexOf(' ');
-            if (indexOfSpace != -1)
-                name = name.substring(0, indexOfSpace);
-        }
-        return name;
-    }
-
-    private static void writeTabDelimLine(BufferedWriter writer, String[] contents) throws IOException {
-        if (contents.length > 0) {
-            writer.write(contents[0]);
-            for (int i = 1; i < contents.length; i++) {
-                writer.write('\t');
-                writer.write(contents[i]);
-            }
+    private static void writeTabDelimLine(BufferedWriter writer, String... contents) throws IOException {
+        writer.write(contents[0]);
+        for (int i = 1; i < contents.length; i++) {
+            writer.write('\t');
+            writer.write(contents[i]);
         }
         writer.newLine();
     }

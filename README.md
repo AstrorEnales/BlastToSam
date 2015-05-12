@@ -8,8 +8,9 @@ This tool is compliant to SAM file format specification v1.4 (http://samtools.gi
 Jar Download
 ==========
 The newest version can always be downloaded from [here.](http://astror.pavo.uberspace.de/ci/blasttosam/BlastToSam.jar)
- 
+
 [![Build Status](https://travis-ci.org/AstrorEnales/BlastToSam.svg)](https://travis-ci.org/AstrorEnales/BlastToSam)
+![File Updated](http://astror.pavo.uberspace.de/ci/blasttosam/state.php)
 
 Why use this tool?
 ==========

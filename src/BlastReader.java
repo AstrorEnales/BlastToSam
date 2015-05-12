@@ -30,6 +30,24 @@ class NameWithLength {
     public String Name;
     public int Length = BlastReader.LENGTH_NOT_READ;
     public boolean NoHits;
+
+    public String getCleanName(boolean cutNameModeOn) {
+        if (cleanName == null)
+            cleanName = cleanName(Name, cutNameModeOn);
+        return cleanName;
+    }
+
+    private String cleanName;
+
+    public static String cleanName(String name, boolean cutNameModeOn) {
+        name = name.replace('\t', ' ');
+        if (cutNameModeOn) {
+            int indexOfSpace = name.indexOf(' ');
+            if (indexOfSpace != -1)
+                name = name.substring(0, indexOfSpace);
+        }
+        return name;
+    }
 }
 
 public final class BlastReader {
@@ -112,13 +130,16 @@ public final class BlastReader {
             currentAlignment.Flag = flag;
             flag = 0x0100;
             alignments.add(currentAlignment);
-            String scoreText = trimmedLine.substring(SCORE_IDENTIFIER.length()).split("bits")[0].trim();
+            String scoreText = trimmedLine.substring(SCORE_IDENTIFIER.length());
+            scoreText = scoreText.substring(0, scoreText.indexOf("bits")).trim();
             currentAlignment.Score = (int) (Math.ceil(Double.parseDouble(scoreText)));
-            currentAlignment.EValue = line.substring(line.indexOf(EXPECT_IDENTIFIER) + EXPECT_IDENTIFIER.length()).split(",")[0].trim();
+            currentAlignment.EValue = line.substring(line.indexOf(EXPECT_IDENTIFIER) + EXPECT_IDENTIFIER.length()).trim();
         } else if (currentAlignment != null && trimmedLine.startsWith(IDENTITIES_IDENTIFIER)) {
-            String scoreText = trimmedLine.substring(IDENTITIES_IDENTIFIER.length()).split(Pattern.quote("("))[0].trim();
-            String[] parts = scoreText.split("/");
-            currentAlignment.EditDistance = Integer.parseInt(parts[1]) - Integer.parseInt(parts[0]);
+            String scoreText = trimmedLine.substring(IDENTITIES_IDENTIFIER.length());
+            scoreText = scoreText.substring(0, scoreText.indexOf('(')).trim();
+            int indexOfSlash = scoreText.indexOf('/');
+            currentAlignment.EditDistance = Integer.parseInt(scoreText.substring(indexOfSlash + 1)) -
+                    Integer.parseInt(scoreText.substring(0, indexOfSlash));
         } else if (currentAlignment != null && line.startsWith("Query ")) {
             reader.readLine(); // Align line
             String subjectLine = reader.readLine();

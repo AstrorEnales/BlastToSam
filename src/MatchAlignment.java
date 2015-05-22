@@ -24,7 +24,7 @@ THE SOFTWARE.
 
 import java.util.HashMap;
 
-public class MatchAlignment {
+public final class MatchAlignment {
     public int Score;
     public String EValue;
     public NameWithLength Reference;
@@ -39,20 +39,20 @@ public class MatchAlignment {
     public int AlignmentPositive;
     public int Flag;
 
-    public int getEditDistance() {
+    public final int getEditDistance() {
         return AlignmentLength - AlignmentPositive;
     }
 
-    public void addAlignmentFragment(String queryLine, String subjectLine) {
+    public final void addAlignmentFragment(String queryLine, String subjectLine) {
         addQueryLineFragment(queryLine);
         addSubjectLineFragment(subjectLine);
     }
 
     private void addQueryLineFragment(String queryLine) {
-        String querySeq = queryLine.substring(QUERY_IDENTIFIER.length()).trim();
+        String querySeq = Utils.trimmedSubstring(queryLine, QUERY_IDENTIFIER.length());
         int indexOfSpaceAfterQueryStartNumber = querySeq.indexOf(' ');
         int queryStart = Integer.parseInt(querySeq.substring(0, indexOfSpaceAfterQueryStartNumber));
-        querySeq = querySeq.substring(indexOfSpaceAfterQueryStartNumber + 1).trim();
+        querySeq = Utils.trimmedSubstring(querySeq, indexOfSpaceAfterQueryStartNumber + 1);
         int queryEnd = Integer.parseInt(querySeq.substring(querySeq.lastIndexOf(' ') + 1));
         if (queryEnd < queryStart) {
             QueryReverse = true;
@@ -60,17 +60,16 @@ public class MatchAlignment {
         } else if (QueryStart == BlastReader.LENGTH_NOT_READ) {
             QueryStart = queryStart;
         }
-        querySeq = querySeq.substring(0, querySeq.indexOf(' '));
-        QuerySequence += querySeq;
+        QuerySequence += querySeq.substring(0, querySeq.indexOf(' '));
     }
 
     private static final String QUERY_IDENTIFIER = "Query";
 
     private void addSubjectLineFragment(String subjectLine) {
-        subjectLine = subjectLine.substring(SUBJECT_IDENTIFIER.length()).trim();
+        subjectLine = Utils.trimmedSubstring(subjectLine, SUBJECT_IDENTIFIER.length());
         int indexOfSpaceAfterSubjectStartNumber = subjectLine.indexOf(' ');
         int subjectStart = Integer.parseInt(subjectLine.substring(0, indexOfSpaceAfterSubjectStartNumber));
-        subjectLine = subjectLine.substring(indexOfSpaceAfterSubjectStartNumber + 1).trim();
+        subjectLine = Utils.trimmedSubstring(subjectLine, indexOfSpaceAfterSubjectStartNumber + 1);
         int subjectEnd = Integer.parseInt(subjectLine.substring(subjectLine.lastIndexOf(' ') + 1));
         if (subjectEnd < subjectStart) {
             SubjectReverse = true;
@@ -84,28 +83,40 @@ public class MatchAlignment {
 
     private static final String SUBJECT_IDENTIFIER = "Sbjct";
 
-    public String getSequence() {
-        String sequence = QuerySequence.replace("-", "");
-        if (SubjectReverse) {
-            StringBuilder result = new StringBuilder(sequence).reverse();
-            for (int i = 0; i < sequence.length(); i++) {
-                String key = "" + result.charAt(i);
-                if (ComplementaryMap.containsKey(key))
-                    result.setCharAt(i, ComplementaryMap.get(key).charAt(0));
-                else
-                    System.out.println("Unknown char while building complementary sequence: '" +
-                            result.charAt(i) + "', will be left unchanged!");
+    public final String getSequence() {
+        if (resultSequence != null)
+            return resultSequence;
+        int pos = QuerySequence.indexOf('-');
+        if (pos == -1)
+            pos = QuerySequence.length();
+        final char[] chars = QuerySequence.toCharArray();
+        for (int i = pos + 1; i < chars.length; i++) {
+            if (chars[i] != '-') {
+                chars[pos++] = chars[i];
             }
-            sequence = result.toString();
         }
-        return sequence;
+        if (SubjectReverse) {
+            for (int i = 0; i < pos; i++) {
+                char c = chars[i];
+                if (c >= 0 && c < complement.length)
+                    chars[pos - i - 1] = complement[c];
+                else {
+                    chars[pos - i - 1] = c;
+                    System.out.println("Unknown char while building complementary sequence: '" +
+                            c + "', will be left unchanged!");
+                }
+            }
+        }
+        resultSequence = new String(chars, 0, pos);
+        return resultSequence;
     }
 
-    private static HashMap<String, String> ComplementaryMap;
+    private static char[] complement;
+    private String resultSequence;
 
     public MatchAlignment() {
-        if (ComplementaryMap == null) {
-            ComplementaryMap = new HashMap<String, String>();
+        if (complement == null) {
+            HashMap<String, String> ComplementaryMap = new HashMap<String, String>();
             ComplementaryMap.put("a", "t");
             ComplementaryMap.put("t", "a");
             ComplementaryMap.put("g", "c");
@@ -128,62 +139,83 @@ public class MatchAlignment {
             ComplementaryMap.put("S", "S");
             ComplementaryMap.put("W", "W");
             ComplementaryMap.put("N", "N");
+            complement = new char['x'];
+            for (int i = 0; i < complement.length; i++) {
+                char c = (char) (i);
+                complement[i] = ComplementaryMap.containsKey("" + c) ? ComplementaryMap.get("" + c).charAt(0) : c;
+            }
         }
     }
 
-    public String getCigar(int queryLength) {
+    public final String getCigar() {
+        if (cigarText != null)
+            return cigarText;
         StringBuilder cigar = new StringBuilder(QueryStart > 1 ? ((QueryStart - 1) + "H") : "");
-        String type = "=";
-        String previous = "=";
-        int count = 0;
-        for (int i = 0; i < QuerySequence.length(); i++) {
-            if (QuerySequence.charAt(i) == '-')
-                type = "D";
-            else if (SubjectSequence.charAt(i) == '-')
-                type = "I";
-            else if (QuerySequence.charAt(i) == SubjectSequence.charAt(i))
-                type = "=";
-            else
-                type = "X";
-            if (type.equals(previous)) {
-                count++;
-            } else if (count >= 1) {
-                if (SubjectReverse)
-                    cigar.insert(0, count + previous);
-                else {
-                    cigar.append(count);
-                    cigar.append(previous);
+        if (QuerySequence.equals(SubjectSequence)) {
+            if (SubjectReverse)
+                cigar.insert(0, SubjectSequence.length() + "=");
+            else {
+                cigar.append(SubjectSequence.length());
+                cigar.append("=");
+            }
+        } else {
+            String type = "=";
+            String previous = "=";
+            int count = 0;
+            char[] queryChars = QuerySequence.toCharArray();
+            char[] subjectChars = SubjectSequence.toCharArray();
+            for (int i = 0; i < queryChars.length; i++) {
+                if (queryChars[i] == '-')
+                    type = "D";
+                else if (subjectChars[i] == '-')
+                    type = "I";
+                else if (queryChars[i] == subjectChars[i])
+                    type = "=";
+                else
+                    type = "X";
+                if (type.equals(previous)) {
+                    count++;
+                } else if (count >= 1) {
+                    if (SubjectReverse)
+                        cigar.insert(0, count + previous);
+                    else {
+                        cigar.append(count);
+                        cigar.append(previous);
+                    }
+                    previous = type;
+                    count = 1;
                 }
-                previous = type;
-                count = 1;
+            }
+            if (SubjectReverse)
+                cigar.insert(0, count + type);
+            else {
+                cigar.append(count);
+                cigar.append(type);
             }
         }
-        if (SubjectReverse)
-            cigar.insert(0, count + type);
-        else {
-            cigar.append(count);
-            cigar.append(type);
-        }
-        int seqLength = QuerySequence.replace("-", "").length() + (QueryStart - 1);
-        if (seqLength < queryLength) {
+        int seqLength = Utils.lengthOfStringWithoutChar(QuerySequence, '-') + QueryStart - 1;
+        if (seqLength < Query.Length) {
             if (SubjectReverse)
-                cigar.insert(0, (queryLength - seqLength) + "H");
+                cigar.insert(0, (Query.Length - seqLength) + "H");
             else {
-                cigar.append((queryLength - seqLength));
+                cigar.append((Query.Length - seqLength));
                 cigar.append("H");
             }
         }
-        return cigar.toString();
+        cigarText = cigar.toString();
+        return cigarText;
     }
 
-    public int getMapScore() {
+    private String cigarText;
+
+    public final int getMapScore() {
         return 0;
         // TODO: Use E-Value as mapping score (Phred scaled)
         //long eval = Double.valueOf(EValue).longValue();
         //return (int)(eval >= 0 ? 0 : -10 * (Math.log(eval) / Math.log(10)));
     }
 
-    public String getFlag() {
+    public final String getFlag() {
         return "" + Flag;
     }
 }

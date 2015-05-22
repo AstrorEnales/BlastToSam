@@ -66,6 +66,10 @@ BlastToSam was tested with the following versions of BLASTN:
 
 Changesets
 ==========
+2015-05-22
+
+- Improved performance (especially with many queries)
+
 2015-05-12
 
 - Improved performance

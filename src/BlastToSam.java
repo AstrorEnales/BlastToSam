@@ -36,7 +36,7 @@ public class BlastToSam {
         }
         if (argsParser.HelpPageShown)
             return;
-        System.out.println("[Info] BlastToSam v2015-05-12");
+        System.out.println("[Info] BlastToSam v2015-05-22");
         System.out.println("[Info] Converting '" + argsParser.InputFilepath + "' to '" + argsParser.OutputFilepath + "'");
         System.out.println("[Info] SortingOrder is " + argsParser.SortingOrder);
         System.out.println("[Info] NameMode is " + argsParser.NameMode);
@@ -46,22 +46,14 @@ public class BlastToSam {
         Date startTime = new Date();
 
         System.out.println("[Info] Reading input file...");
+        Date startReadTime = new Date();
         BlastReader blast;
         if (argsParser.InputFilepath.endsWith(".xml")) {
             blast = new BlastXmlReader(argsParser.InputFilepath);
         } else {
             blast = new BlastTextReader(argsParser.InputFilepath);
         }
-
-        ArrayList<String> readGroupNameTable = new ArrayList<String>();
-        for (NameWithLength query : blast.queries) {
-            if (!readGroupNameTable.contains(query.Name) && (!argsParser.RemoveQueriesWithoutHits || !query.NoHits))
-                readGroupNameTable.add(query.Name);
-        }
-
-        System.out.println("[Info] Query count: " + blast.queries.size());
-        System.out.println("[Info] Reference count: " + blast.references.size());
-        System.out.println("[Info] Alignments count: " + blast.alignments.size());
+        long elapsedRead = new Date().getTime() - startReadTime.getTime();
 
         if (argsParser.SortingOrder.equals(ArgsParser.SORT_ORDER_COORDINATE)) {
             System.out.println("[Info] Sorting in coordinate mode...");
@@ -92,51 +84,66 @@ public class BlastToSam {
 
         boolean cutNameModeOn = argsParser.NameMode.equals(ArgsParser.NAME_MODE_CUT);
         System.out.println("[Info] Writing output...");
+        Date startWriteTime = new Date();
         BufferedWriter writer = new BufferedWriter(new FileWriter(argsParser.OutputFilepath));
-        writeTabDelimLine(writer, "@HD", "VN:1.4", "SO:" + argsParser.SortingOrder);
-        String comment = "Blast query result" + (blast.DatabaseName.length() > 0 ?
-                " for database '" + blast.DatabaseName + "'" : "") + ". Converted with BlastToSam";
-        writeTabDelimLine(writer, "@CO", comment);
-        for (int i = 0; i < readGroupNameTable.size(); i++) {
-            writeTabDelimLine(writer, "@RG", "ID:" + (i + 1), "DS:" + NameWithLength.cleanName(readGroupNameTable.get(i), cutNameModeOn), "PL:*", "SM:*");
+        // Header
+        writer.write("@HD\tVN:1.4\tSO:");
+        writer.write(argsParser.SortingOrder);
+        writer.newLine();
+        // Comment
+        writer.write("@CO\tBlast query result");
+        if (blast.DatabaseName.length() > 0)
+            writer.write(" for database '" + blast.DatabaseName + "'");
+        writer.write(". Converted with BlastToSam");
+        writer.newLine();
+        // Queries
+        int queryId = 1;
+        int queriesWithHits = 0;
+        for (NameWithLength query : blast.queries) {
+            if (!argsParser.RemoveQueriesWithoutHits || !query.NoHits) {
+                query.Id = queryId++;
+                writer.write("@RG\tID:" + query.Id);
+                writer.write("\tDS:");
+                writer.write(query.getCleanName(cutNameModeOn));
+                writer.write("\tPL:*\tSM:*");
+                writer.newLine();
+                queriesWithHits++;
+            }
         }
+        // References
         for (NameWithLength ref : blast.references) {
-            writeTabDelimLine(writer, "@SQ", "SN:" + ref.getCleanName(cutNameModeOn), "LN:" + ref.Length);
+            writer.write("@SQ\tSN:");
+            writer.write(ref.getCleanName(cutNameModeOn));
+            writer.write("\tLN:" + ref.Length);
+            writer.newLine();
         }
-
+        // Alignments
         for (MatchAlignment alignment : blast.alignments) {
-            String shortQueryName = alignment.Query.getCleanName(cutNameModeOn);
-            String shortReferenceName = alignment.Reference.getCleanName(cutNameModeOn);
-            writeTabDelimLine(writer,
-                    shortQueryName,                               // QNAME
-                    alignment.getFlag(),                          // FLAG
-                    shortReferenceName,                           // RNAME
-                    "" + alignment.SubjectStart,                  // POS
-                    "" + alignment.getMapScore(),                 // MAPQ
-                    alignment.getCigar(alignment.Query.Length),   // CIGAR
-                    "*",                                          // RNEXT
-                    "0",                                          // PNEXT
-                    "0",                                          // TLEN
-                    alignment.getSequence(),                      // SEQ
-                    "*",                                          // QUAL
-                    "AS:i:" + alignment.Score,
-                    "XE:f:" + alignment.EValue,
-                    "RG:Z:" + (readGroupNameTable.indexOf(alignment.Query.Name) + 1),
-                    "NM:i:" + alignment.getEditDistance());
+            // QNAME  FLAG  RNAME  POS  MAPQ  CIGAR  RNEXT  PNEXT  TLEN  SEQ  QUAL
+            writer.write(alignment.Query.getCleanName(cutNameModeOn));
+            writer.write("\t" + alignment.getFlag());
+            writer.write('\t');
+            writer.write(alignment.Reference.getCleanName(cutNameModeOn));
+            writer.write("\t" + alignment.SubjectStart);
+            writer.write("\t" + alignment.getMapScore());
+            writer.write('\t');
+            writer.write(alignment.getCigar());
+            writer.write("\t*\t0\t0\t");
+            writer.write(alignment.getSequence());
+            writer.write("\t*\tAS:i:" + alignment.Score);
+            writer.write("\tXE:f:" + alignment.EValue);
+            writer.write("\tRG:Z:" + alignment.Query.Id);
+            writer.write("\tNM:i:" + alignment.getEditDistance());
+            writer.newLine();
         }
         writer.close();
-
-        Date endTime = new Date();
-        long elapsed = endTime.getTime() - startTime.getTime();
-        System.out.println("[Info] Took " + (elapsed < 1000 ? (elapsed + "ms") : ((elapsed / 1000.0) + "sec")));
-    }
-
-    private static void writeTabDelimLine(BufferedWriter writer, String... contents) throws IOException {
-        writer.write(contents[0]);
-        for (int i = 1; i < contents.length; i++) {
-            writer.write('\t');
-            writer.write(contents[i]);
-        }
-        writer.newLine();
+        long elapsedWrite = new Date().getTime() - startWriteTime.getTime();
+        long elapsedTotal = new Date().getTime() - startTime.getTime();
+        System.out.println("[Info] Query count: " + blast.queries.size() + ", with hits: " + queriesWithHits);
+        System.out.println("[Info] Reference count: " + blast.references.size());
+        System.out.println("[Info] Alignments count: " + blast.alignments.size());
+        System.out.println("[Info] Read  Time " + (elapsedRead < 1000 ? (elapsedRead + "ms") : ((elapsedRead / 1000.0) + "sec")));
+        System.out.println("[Info] Write Time " + (elapsedWrite < 1000 ? (elapsedWrite + "ms") : ((elapsedWrite / 1000.0) + "sec")));
+        System.out.println("[Info] Total Time " + (elapsedTotal < 1000 ? (elapsedTotal + "ms") : ((elapsedTotal / 1000.0) + "sec")));
     }
 }

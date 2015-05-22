@@ -26,6 +26,7 @@ class NameWithLength {
     public String Name;
     public int Length = BlastReader.LENGTH_NOT_READ;
     public boolean NoHits;
+    public int Id;
 
     public String getCleanName(boolean cutNameModeOn) {
         if (cleanName == null)
@@ -36,12 +37,17 @@ class NameWithLength {
     private String cleanName;
 
     public static String cleanName(String name, boolean cutNameModeOn) {
-        name = name.replace('\t', ' ');
         if (cutNameModeOn) {
             int indexOfSpace = name.indexOf(' ');
+            int indexOfTab = name.indexOf('\t');
+            if (indexOfSpace != -1 && indexOfTab != -1)
+                return name.substring(0, Math.min(indexOfSpace, indexOfTab));
             if (indexOfSpace != -1)
-                name = name.substring(0, indexOfSpace);
+                return name.substring(0, indexOfSpace);
+            if (indexOfTab != -1)
+                return name.substring(0, indexOfTab);
+            return name;
         }
-        return name;
+        return name.replace('\t', ' ');
     }
 }

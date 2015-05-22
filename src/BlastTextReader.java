@@ -27,7 +27,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 
-public class BlastTextReader extends BlastReader {
+public final class BlastTextReader extends BlastReader {
     public BlastTextReader(String filename) throws IOException {
         File inputFile = new File(filename);
         BufferedReader reader = new BufferedReader(new FileReader(inputFile));
@@ -36,21 +36,25 @@ public class BlastTextReader extends BlastReader {
         currentReference = null;
         currentAlignment = null;
         flag = 0x0100;
+        boolean foundDatabaseName = false;
         while ((line = reader.readLine()) != null) {
-            String trimmedLine = line.trim();
+            if (line.length() == 0)
+                continue;
+            String trimmedLine = Utils.trim(line);
             if (trimmedLine.length() == 0)
                 continue;
-            if (line.startsWith(DATABASE_IDENTIFIER)) {
-                DatabaseName = line.substring(DATABASE_IDENTIFIER.length()).trim().replace('\t', ' ');
-            } else if (line.startsWith(QUERY_IDENTIFIER)) {
+            if (!foundDatabaseName && Utils.startsWith(line, DATABASE_IDENTIFIER)) {
+                DatabaseName = Utils.trimmedSubstring(line, DATABASE_IDENTIFIER.length());
+                foundDatabaseName = true;
+            } else if (Utils.startsWith(line, QUERY_IDENTIFIER)) {
                 startNewQuery(line);
             } else if (currentQuery != null) {
                 if (currentQuery.Length == LENGTH_NOT_READ) {
                     readQueryInformation(trimmedLine);
                 } else {
-                    if (line.startsWith(NO_HITS_IDENTIFIER)) {
+                    if (Utils.startsWith(line, NO_HITS_IDENTIFIER)) {
                         currentQuery.NoHits = true;
-                    } else if (line.startsWith(REFERENCE_IDENTIFIER)) {
+                    } else if (Utils.startsWith(line, REFERENCE_IDENTIFIER)) {
                         startNewReference(line);
                     } else if (currentReference != null) {
                         if (currentReference.Length == LENGTH_NOT_READ) {
@@ -72,14 +76,14 @@ public class BlastTextReader extends BlastReader {
 
     private void startNewQuery(String line) {
         currentQuery = new NameWithLength();
-        currentQuery.Name = line.substring(QUERY_IDENTIFIER.length()).trim();
+        queries.add(currentQuery);
+        currentQuery.Name = Utils.trimmedSubstring(line, QUERY_IDENTIFIER_LEN);
         flag ^= 0x0100;
     }
 
     private void readQueryInformation(String line) {
-        if (line.startsWith(LENGTH_IDENTIFIER)) {
-            currentQuery.Length = Integer.parseInt(line.substring(LENGTH_IDENTIFIER.length()).trim());
-            currentQuery = addToListOrGetEntry(queries, currentQuery);
+        if (Utils.startsWith(line, LENGTH_IDENTIFIER)) {
+            currentQuery.Length = Integer.parseInt(Utils.trimmedSubstring(line, LENGTH_IDENTIFIER_LEN));
         } else {
             currentQuery.Name += line;
         }
@@ -87,12 +91,12 @@ public class BlastTextReader extends BlastReader {
 
     private void startNewReference(String line) {
         currentReference = new NameWithLength();
-        currentReference.Name = line.substring(REFERENCE_IDENTIFIER.length()).trim();
+        currentReference.Name = Utils.trimmedSubstring(line, 1);
     }
 
     private void readReferenceInformation(String line) {
-        if (line.startsWith(LENGTH_IDENTIFIER)) {
-            currentReference.Length = Integer.parseInt(line.substring(LENGTH_IDENTIFIER.length()).trim());
+        if (Utils.startsWith(line, LENGTH_IDENTIFIER)) {
+            currentReference.Length = Integer.parseInt(Utils.trimmedSubstring(line, LENGTH_IDENTIFIER_LEN));
             currentReference = addToListOrGetEntry(references, currentReference);
         } else {
             currentReference.Name += line;
@@ -100,24 +104,24 @@ public class BlastTextReader extends BlastReader {
     }
 
     private void readAlignmentInformation(BufferedReader reader, String line, String trimmedLine) throws IOException {
-        if (trimmedLine.startsWith(SCORE_IDENTIFIER)) {
+        if (Utils.startsWith(trimmedLine, SCORE_IDENTIFIER)) {
             currentAlignment = new MatchAlignment();
             currentAlignment.Query = currentQuery;
             currentAlignment.Reference = currentReference;
             currentAlignment.Flag = flag;
             flag = 0x0100;
             alignments.add(currentAlignment);
-            String scoreText = trimmedLine.substring(SCORE_IDENTIFIER.length());
-            scoreText = scoreText.substring(0, scoreText.indexOf("bits")).trim();
+            String scoreText = trimmedLine.substring(SCORE_IDENTIFIER_LEN);
+            scoreText = Utils.trimmedSubstring(scoreText, 0, scoreText.indexOf(BITS_IDENTIFIER));
             currentAlignment.Score = (int) (Math.ceil(Double.parseDouble(scoreText)));
-            currentAlignment.EValue = line.substring(line.indexOf(EXPECT_IDENTIFIER) + EXPECT_IDENTIFIER.length()).trim();
-        } else if (currentAlignment != null && trimmedLine.startsWith(IDENTITIES_IDENTIFIER)) {
-            String scoreText = trimmedLine.substring(IDENTITIES_IDENTIFIER.length());
-            scoreText = scoreText.substring(0, scoreText.indexOf('(')).trim();
+            currentAlignment.EValue = Utils.trimmedSubstring(line, line.indexOf(EXPECT_IDENTIFIER) + EXPECT_IDENTIFIER_LEN);
+        } else if (currentAlignment != null && Utils.startsWith(trimmedLine, IDENTITIES_IDENTIFIER)) {
+            String scoreText = trimmedLine.substring(IDENTITIES_IDENTIFIER_LEN);
+            scoreText = Utils.trimmedSubstring(scoreText, 0, scoreText.indexOf('('));
             int indexOfSlash = scoreText.indexOf('/');
             currentAlignment.AlignmentLength = Integer.parseInt(scoreText.substring(indexOfSlash + 1));
             currentAlignment.AlignmentPositive = Integer.parseInt(scoreText.substring(0, indexOfSlash));
-        } else if (currentAlignment != null && line.startsWith("Query ")) {
+        } else if (currentAlignment != null && Utils.startsWith(line, QUERY_ALIGNMENT_IDENTIFIER)) {
             reader.readLine(); // Align line
             String subjectLine = reader.readLine();
             currentAlignment.addAlignmentFragment(line, subjectLine);
@@ -126,10 +130,17 @@ public class BlastTextReader extends BlastReader {
 
     private static final String DATABASE_IDENTIFIER = "Database:";
     private static final String QUERY_IDENTIFIER = "Query=";
+    private static final int QUERY_IDENTIFIER_LEN = QUERY_IDENTIFIER.length();
+    private static final String QUERY_ALIGNMENT_IDENTIFIER = "Query ";
+    private static final String BITS_IDENTIFIER = "bits";
     private static final String LENGTH_IDENTIFIER = "Length=";
+    private static final int LENGTH_IDENTIFIER_LEN = LENGTH_IDENTIFIER.length();
     private static final String NO_HITS_IDENTIFIER = "***** No hits found *****";
     private static final String REFERENCE_IDENTIFIER = ">";
     private static final String SCORE_IDENTIFIER = "Score =";
+    private static final int SCORE_IDENTIFIER_LEN = SCORE_IDENTIFIER.length();
     private static final String EXPECT_IDENTIFIER = "Expect =";
+    private static final int EXPECT_IDENTIFIER_LEN = EXPECT_IDENTIFIER.length();
     private static final String IDENTITIES_IDENTIFIER = "Identities =";
+    private static final int IDENTITIES_IDENTIFIER_LEN = IDENTITIES_IDENTIFIER.length();
 }

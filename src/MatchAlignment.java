@@ -22,8 +22,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
-import java.util.HashMap;
-
 public final class MatchAlignment {
     public int Score;
     public String EValue;
@@ -90,115 +88,91 @@ public final class MatchAlignment {
         if (pos == -1)
             pos = QuerySequence.length();
         final char[] chars = QuerySequence.toCharArray();
-        for (int i = pos + 1; i < chars.length; i++) {
+        for (int i = pos; i < chars.length; i++) {
             if (chars[i] != '-') {
                 chars[pos++] = chars[i];
             }
         }
+        final char[] resultChars = SubjectReverse ? new char[pos] : chars;
         if (SubjectReverse) {
             for (int i = 0; i < pos; i++) {
                 char c = chars[i];
-                if (c >= 0 && c < complement.length)
-                    chars[pos - i - 1] = complement[c];
-                else {
-                    chars[pos - i - 1] = c;
-                    System.out.println("Unknown char while building complementary sequence: '" +
-                            c + "', will be left unchanged!");
-                }
+                int targetIndex = pos - i - 1;
+                if (c == 'a' || c == 'A')
+                    resultChars[targetIndex] = 'T';
+                else if (c == 't' || c == 'T')
+                    resultChars[targetIndex] = 'A';
+                else if (c == 'g' || c == 'G')
+                    resultChars[targetIndex] = 'C';
+                else if (c == 'c' || c == 'C')
+                    resultChars[targetIndex] = 'G';
+                else if (c == 'r' || c == 'R')
+                    resultChars[targetIndex] = 'Y';
+                else if (c == 'y' || c == 'Y')
+                    resultChars[targetIndex] = 'R';
+                else if (c == 'm' || c == 'M')
+                    resultChars[targetIndex] = 'K';
+                else if (c == 'k' || c == 'K')
+                    resultChars[targetIndex] = 'M';
+                else
+                    resultChars[targetIndex] = c;
             }
         }
-        resultSequence = new String(chars, 0, pos);
+        resultSequence = new String(resultChars, 0, pos);
         return resultSequence;
     }
 
-    private static char[] complement;
     private String resultSequence;
-
-    public MatchAlignment() {
-        if (complement == null) {
-            HashMap<String, String> ComplementaryMap = new HashMap<String, String>();
-            ComplementaryMap.put("a", "t");
-            ComplementaryMap.put("t", "a");
-            ComplementaryMap.put("g", "c");
-            ComplementaryMap.put("c", "g");
-            ComplementaryMap.put("r", "y");
-            ComplementaryMap.put("y", "r");
-            ComplementaryMap.put("m", "k");
-            ComplementaryMap.put("k", "m");
-            ComplementaryMap.put("s", "s");
-            ComplementaryMap.put("w", "w");
-            ComplementaryMap.put("n", "n");
-            ComplementaryMap.put("A", "T");
-            ComplementaryMap.put("T", "A");
-            ComplementaryMap.put("G", "C");
-            ComplementaryMap.put("C", "G");
-            ComplementaryMap.put("R", "Y");
-            ComplementaryMap.put("Y", "R");
-            ComplementaryMap.put("M", "K");
-            ComplementaryMap.put("K", "M");
-            ComplementaryMap.put("S", "S");
-            ComplementaryMap.put("W", "W");
-            ComplementaryMap.put("N", "N");
-            complement = new char['x'];
-            for (int i = 0; i < complement.length; i++) {
-                char c = (char) (i);
-                complement[i] = ComplementaryMap.containsKey("" + c) ? ComplementaryMap.get("" + c).charAt(0) : c;
-            }
-        }
-    }
 
     public final String getCigar() {
         if (cigarText != null)
             return cigarText;
-        StringBuilder cigar = new StringBuilder(QueryStart > 1 ? ((QueryStart - 1) + "H") : "");
-        if (QuerySequence.equals(SubjectSequence)) {
-            if (SubjectReverse)
-                cigar.insert(0, SubjectSequence.length() + "=");
-            else {
-                cigar.append(SubjectSequence.length());
-                cigar.append("=");
-            }
-        } else {
-            String type = "=";
-            String previous = "=";
-            int count = 0;
-            char[] queryChars = QuerySequence.toCharArray();
-            char[] subjectChars = SubjectSequence.toCharArray();
-            for (int i = 0; i < queryChars.length; i++) {
-                if (queryChars[i] == '-')
-                    type = "D";
-                else if (subjectChars[i] == '-')
-                    type = "I";
-                else if (queryChars[i] == subjectChars[i])
-                    type = "=";
-                else
-                    type = "X";
-                if (type.equals(previous)) {
-                    count++;
-                } else if (count >= 1) {
-                    if (SubjectReverse)
-                        cigar.insert(0, count + previous);
-                    else {
-                        cigar.append(count);
-                        cigar.append(previous);
-                    }
-                    previous = type;
-                    count = 1;
-                }
-            }
-            if (SubjectReverse)
-                cigar.insert(0, count + type);
-            else {
+        StringBuilder cigar = new StringBuilder();
+        String type = "=";
+        String previous = "";
+        int count = 0;
+        char[] queryChars = QuerySequence.toCharArray();
+        char[] subjectChars = SubjectSequence.toCharArray();
+        int i = SubjectReverse ? queryChars.length - 1 : 0;
+        for (; SubjectReverse ? i >= 0 : i < queryChars.length; i += SubjectReverse ? -1 : 1) {
+            if (queryChars[i] == '-')
+                type = "D";
+            else if (subjectChars[i] == '-')
+                type = "I";
+            else if (queryChars[i] == subjectChars[i])
+                type = "=";
+            else
+                type = "X";
+            if (previous.length() == 0)
+                previous = type;
+            if (type.equals(previous)) {
+                count++;
+            } else if (count >= 1) {
                 cigar.append(count);
-                cigar.append(type);
+                cigar.append(previous);
+                previous = type;
+                count = 1;
             }
         }
-        int seqLength = Utils.lengthOfStringWithoutChar(QuerySequence, '-') + QueryStart - 1;
+        cigar.append(count);
+        cigar.append(type);
+
+        // Head clipping
+        if (QueryStart > 1) {
+            if (SubjectReverse) {
+                cigar.append(QueryStart - 1);
+                cigar.append("H");
+            } else
+                cigar.insert(0, (QueryStart - 1) + "H");
+        }
+
+        // Tail clipping
+        int seqLength = Utils.lengthOfStringWithoutChar(queryChars, '-') + QueryStart - 1;
         if (seqLength < Query.Length) {
             if (SubjectReverse)
                 cigar.insert(0, (Query.Length - seqLength) + "H");
             else {
-                cigar.append((Query.Length - seqLength));
+                cigar.append(Query.Length - seqLength);
                 cigar.append("H");
             }
         }

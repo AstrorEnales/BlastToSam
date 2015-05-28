@@ -64,8 +64,12 @@ public final class Utils {
     }
 
     public static int lengthOfStringWithoutChar(final String str, final char remove) {
-        int length = 0;
         final char[] chars = str.toCharArray();
+        return lengthOfStringWithoutChar(chars, remove);
+    }
+
+    public static int lengthOfStringWithoutChar(final char[] chars, final char remove) {
+        int length = 0;
         for (int i = 0; i < chars.length; i++) {
             if (chars[i] != remove) {
                 length++;

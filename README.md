@@ -10,7 +10,8 @@ Jar Download
 The newest version can always be downloaded from [here.](http://astror.pavo.uberspace.de/ci/blasttosam/BlastToSam.jar)
 
 [![Build Status](https://travis-ci.org/AstrorEnales/BlastToSam.svg)](https://travis-ci.org/AstrorEnales/BlastToSam)
-![File Updated](http://astror.pavo.uberspace.de/ci/blasttosam/state.php)
+[![File Updated](http://astror.pavo.uberspace.de/ci/blasttosam/state.php)](http://astror.pavo.uberspace.de/ci/blasttosam/BlastToSam.jar)
+[![DOI](https://zenodo.org/badge/13366/AstrorEnales/BlastToSam.svg)](http://dx.doi.org/10.5281/zenodo.18097)
 
 Why use this tool?
 ==========
